@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "anthropic-ui-skills": {
+      "source": "ihlamury/design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/anthropic/SKILL.md",
+      "computedHash": "4d18ed626a7f29b41f05a4e92ce86d4fc824e4621d4d6da4130ebb03d7d8699f"
+    },
+    "frontend-design": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "1e9380363b2118bbcc608aa0f3d15eadce050b39f0c62cbd74cadb56fae7abea"
+    },
+    "review-ux-ui": {
+      "source": "pjt222/development-guides",
+      "sourceType": "github",
+      "skillPath": "skills/review-ux-ui/SKILL.md",
+      "computedHash": "392d71565ca67d387eebe2e204820c20cc2ede9e0f868279527eea48fc6ef01b"
+    },
+    "ui-ux-designer": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-ux-designer/SKILL.md",
+      "computedHash": "43fea76e6b437d5c44694c46e51baf0a342f6ca7c6e35bae609874b888cdbb8a"
+    }
+  }
+}
