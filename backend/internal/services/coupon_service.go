@@ -24,9 +24,38 @@ func (s *CouponService) Validate(ctx context.Context, code string, orderTotal fl
 		return &models.CouponValidateResponse{Valid: false}, nil
 	}
 
-	var coupon models.Coupon
-	if err := doc.DataTo(&coupon); err != nil {
-		return nil, err
+	// Use interface{} for expiresAt to handle both legacy ISO strings and Firestore Timestamps.
+	var raw struct {
+		Code      string      `firestore:"code"`
+		Discount  float64     `firestore:"discount"`
+		Type      string      `firestore:"type"`
+		MinOrder  float64     `firestore:"minOrder"`
+		MaxUses   int         `firestore:"maxUses"`
+		UsedCount int         `firestore:"usedCount"`
+		ExpiresAt interface{} `firestore:"expiresAt"`
+	}
+	if err := doc.DataTo(&raw); err != nil {
+		return nil, fmt.Errorf("parse coupon: %w", err)
+	}
+
+	var expiresAt time.Time
+	switch v := raw.ExpiresAt.(type) {
+	case time.Time:
+		expiresAt = v
+	case string:
+		if t, parseErr := time.Parse(time.RFC3339, v); parseErr == nil {
+			expiresAt = t
+		}
+	}
+
+	coupon := models.Coupon{
+		Code:      raw.Code,
+		Discount:  raw.Discount,
+		Type:      raw.Type,
+		MinOrder:  raw.MinOrder,
+		MaxUses:   raw.MaxUses,
+		UsedCount: raw.UsedCount,
+		ExpiresAt: expiresAt,
 	}
 
 	if time.Now().After(coupon.ExpiresAt) {

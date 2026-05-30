@@ -109,10 +109,11 @@ func (s *OrderService) Create(ctx context.Context, userID string, bagItems []mod
 }
 
 func (s *OrderService) ListByUser(ctx context.Context, userID string) ([]models.Order, error) {
-	query := s.repo.Collection("orders").Where("userId", "==", userID).OrderBy("createdAt", 1)
+	// No OrderBy to avoid requiring a composite Firestore index; sort in Go instead.
+	query := s.repo.Collection("orders").Where("userId", "==", userID)
 	docs, err := s.repo.GetAll(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list orders: %w", err)
 	}
 
 	orders := make([]models.Order, 0, len(docs))
@@ -123,6 +124,16 @@ func (s *OrderService) ListByUser(ctx context.Context, userID string) ([]models.
 		}
 		orders = append(orders, o)
 	}
+
+	// Sort descending by CreatedAt (newest first).
+	for i := 0; i < len(orders)-1; i++ {
+		for j := i + 1; j < len(orders); j++ {
+			if orders[j].CreatedAt.After(orders[i].CreatedAt) {
+				orders[i], orders[j] = orders[j], orders[i]
+			}
+		}
+	}
+
 	return orders, nil
 }
 

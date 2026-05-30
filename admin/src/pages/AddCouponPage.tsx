@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 type DiscountType = 'percent' | 'fixed';
@@ -36,7 +36,7 @@ export default function AddCouponPage() {
         minOrder: minOrder ? parseFloat(minOrder) : 0,
         maxUses: maxUses ? parseInt(maxUses, 10) : 0,
         usedCount: 0,
-        expiresAt: new Date(expiresAt).toISOString(),
+        expiresAt: Timestamp.fromDate(new Date(expiresAt)),
         createdAt: serverTimestamp(),
       });
       setSuccess(`Coupon "${codeUpper}" created successfully!`);

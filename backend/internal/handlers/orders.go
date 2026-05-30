@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hopemart/backend/internal/services"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type OrderHandler struct {
@@ -31,7 +33,11 @@ func (h *OrderHandler) GetByID(c *gin.Context) {
 
 	order, err := h.svc.GetByID(c.Request.Context(), orderID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		if status.Code(err) == codes.NotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	if order.UserID != uid {
@@ -47,7 +53,11 @@ func (h *OrderHandler) Track(c *gin.Context) {
 
 	order, err := h.svc.GetByID(c.Request.Context(), orderID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		if status.Code(err) == codes.NotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 	if order.UserID != uid {
