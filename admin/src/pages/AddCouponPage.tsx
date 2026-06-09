@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { couponService } from '../services/couponService';
 
 type DiscountType = 'percent' | 'fixed';
 
@@ -29,20 +28,19 @@ export default function AddCouponPage() {
 
     setLoading(true);
     try {
-      await setDoc(doc(db, 'coupons', codeUpper), {
+      await couponService.create({
         code: codeUpper,
         type,
         discount: parseFloat(discount),
         minOrder: minOrder ? parseFloat(minOrder) : 0,
         maxUses: maxUses ? parseInt(maxUses, 10) : 0,
-        usedCount: 0,
-        expiresAt: Timestamp.fromDate(new Date(expiresAt)),
-        createdAt: serverTimestamp(),
+        expiresAt: new Date(expiresAt).toISOString(),
       });
       setSuccess(`Coupon "${codeUpper}" created successfully!`);
       reset();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
     } finally {
       setLoading(false);
     }

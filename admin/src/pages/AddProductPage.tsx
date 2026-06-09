@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
+import { productService } from '../services/productService';
 
 type StockMode = 'quantity' | 'weight';
+const MAX_PRODUCT_IMAGE_BYTES = 700 * 1024;
 
 export default function AddProductPage() {
   const [name, setName] = useState('');
@@ -31,6 +30,14 @@ export default function AddProductPage() {
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
+    if (file && file.size > MAX_PRODUCT_IMAGE_BYTES) {
+      setError('Product image must be 700 KB or smaller.');
+      setImage(null);
+      setImagePreview('');
+      e.target.value = '';
+      return;
+    }
+    setError('');
     setImage(file);
     setImagePreview(file ? URL.createObjectURL(file) : '');
   };
@@ -53,45 +60,44 @@ export default function AddProductPage() {
 
     setLoading(true);
     try {
-      let imageUrl = '';
+      let productImage = '';
       if (image) {
-        const storageRef = ref(storage, `items/${Date.now()}_${image.name}`);
-        await uploadBytes(storageRef, image);
-        imageUrl = await getDownloadURL(storageRef);
+        productImage = await productService.imageFileToBase64(image);
       }
 
-      const docData: Record<string, unknown> = {
+      const payload: Record<string, unknown> = {
         name: name.trim(),
         price: parseFloat(price),
         category: category.trim(),
-        imageUrl,
+        imageUrl: productImage,
+        productImage,
         stockType: stockMode,
-        createdAt: serverTimestamp(),
       };
 
       if (stockMode === 'quantity') {
-        docData.stock = parseInt(stock, 10);
+        payload.stock = parseInt(stock, 10);
         if (showWeight && weightPerUnit) {
-          docData.weightPerUnit = parseFloat(weightPerUnit);
+          payload.weightPerUnit = parseFloat(weightPerUnit);
         }
         if (showDimensions && (dimWidth || dimHeight || dimLength)) {
-          docData.dimensions = {
+          payload.dimensions = {
             ...(dimWidth  && { width:  parseFloat(dimWidth) }),
             ...(dimHeight && { height: parseFloat(dimHeight) }),
             ...(dimLength && { length: parseFloat(dimLength) }),
           };
         }
       } else {
-        docData.stock = 0;
-        docData.totalWeight = parseFloat(totalWeightKg);
-        docData.weightUnit = 'kg';
+        payload.stock = 0;
+        payload.totalWeight = parseFloat(totalWeightKg);
+        payload.weightUnit = 'kg';
       }
 
-      await addDoc(collection(db, 'items'), docData);
+      await productService.create(payload as Parameters<typeof productService.create>[0]);
       setSuccess(`"${name}" added successfully!`);
       reset();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -251,7 +257,7 @@ export default function AddProductPage() {
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-slate-600">Click to upload</p>
-                <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 10 MB</p>
+                <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 700 KB</p>
               </div>
             )}
             <input type="file" accept="image/*" onChange={handleImage} className="hidden" />

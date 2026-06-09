@@ -1,38 +1,29 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-
-type Coupon = {
-  id: string;
-  code: string;
-  type: 'percent' | 'fixed';
-  discount: number;
-  minOrder?: number;
-  maxUses?: number;
-  usedCount: number;
-  expiresAt: string;
-  createdAt?: { seconds: number };
-};
+import { Link } from 'react-router-dom';
+import { couponService, type Coupon } from '../services/couponService';
 
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
-    const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, snap => {
-      setCoupons(snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon)));
-      setLoading(false);
-    }, () => setLoading(false));
-    return unsub;
-  }, []);
-
-  const handleDelete = async (id: string, code: string) => {
-    if (!confirm(`Delete coupon "${code}"? This cannot be undone.`)) return;
-    setDeleting(id);
+  const loadCoupons = async () => {
+    setLoading(true);
     try {
-      await deleteDoc(doc(db, 'coupons', id));
+      setCoupons(await couponService.list());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadCoupons(); }, []);
+
+  const handleDelete = async (code: string) => {
+    if (!confirm(`Delete coupon "${code}"? This cannot be undone.`)) return;
+    setDeleting(code);
+    try {
+      await couponService.delete(code);
+      setCoupons(prev => prev.filter(c => c.code !== code));
     } finally {
       setDeleting(null);
     }
@@ -61,7 +52,7 @@ export default function CouponsPage() {
           {coupons.map(c => {
             const expired = isExpired(c.expiresAt);
             return (
-              <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+              <tr key={c.code} className="hover:bg-slate-50/60 transition-colors">
 
                 {/* Code */}
                 <td className="px-6 py-4">
@@ -122,26 +113,40 @@ export default function CouponsPage() {
 
                 {/* Actions */}
                 <td className="px-4 py-4 text-right">
-                  <button
-                    onClick={() => handleDelete(c.id, c.code)}
-                    disabled={deleting === c.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                               text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200
-                               transition-all duration-150 cursor-pointer disabled:opacity-40"
-                  >
-                    {deleting === c.id ? (
-                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                    ) : (
+                  <div className="flex justify-end gap-2">
+                    <Link
+                      to={`/coupons/edit/${c.code}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                                 text-violet-600 hover:bg-violet-50 border border-transparent hover:border-violet-200
+                                 transition-all duration-150 cursor-pointer"
+                    >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                    )}
-                    Delete
-                  </button>
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(c.code)}
+                      disabled={deleting === c.code}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                                 text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200
+                                 transition-all duration-150 cursor-pointer disabled:opacity-40"
+                    >
+                      {deleting === c.code ? (
+                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -149,8 +154,12 @@ export default function CouponsPage() {
         </tbody>
       </table>
 
-      <div className="px-6 py-3 bg-slate-50 border-t border-slate-100">
+      <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <p className="text-xs text-slate-400">{coupons.length} coupon{coupons.length !== 1 ? 's' : ''}</p>
+        <button onClick={loadCoupons} disabled={loading}
+          className="text-xs text-violet-600 hover:text-violet-700 font-medium disabled:opacity-40 cursor-pointer">
+          Reload
+        </button>
       </div>
     </div>
   );
